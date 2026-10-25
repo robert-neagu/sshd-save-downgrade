@@ -1,0 +1,101 @@
+# Builds the GUI for Windows, macOS and Linux with PyInstaller and publishes a GitHub
+# release when a v* tag is pushed. The build jobs only upload artifacts; a single release
+# job attaches everything, so parallel jobs never race to create the same release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            asset: sshd-save-downgrader-windows.exe
+          - os: macos-latest
+            asset: sshd-save-downgrader-macos.zip
+          # oldest supported runner, so the binary needs only glibc 2.35
+          - os: ubuntu-22.04
+            asset: sshd-save-downgrader-linux
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Tk (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk tk-dev xvfb
+
+      - name: Check that Python has tkinter
+        run: python -c "import tkinter; tkinter.Tcl(); print('Tk', tkinter.TkVersion)"
+
+      # Tests needing the (uncommitted) saves skip; GUI tests run on a virtual display on Linux.
+      - name: Run tests (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python -m unittest discover -s tests -v
+
+      - name: Run tests
+        if: runner.os != 'Linux'
+        run: python -m unittest discover -s tests -v
+
+      - name: Install PyInstaller
+        run: python -m pip install "pyinstaller>=6.22,<7"
+
+      - name: Build (single file)
+        if: runner.os != 'macOS'
+        run: pyinstaller --onefile --windowed --name sshd-save-downgrader sshd_save_downgrade_gui.py
+
+      # onefile + windowed is deprecated on macOS (an error in PyInstaller 7), so ship a zipped .app
+      - name: Build (macOS app)
+        if: runner.os == 'macOS'
+        run: pyinstaller --onedir --windowed --name sshd-save-downgrader sshd_save_downgrade_gui.py
+
+      - name: Rename for release
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Windows) mv dist/sshd-save-downgrader.exe "dist/${{ matrix.asset }}" ;;
+            macOS)   ditto -c -k --keepParent dist/sshd-save-downgrader.app "dist/${{ matrix.asset }}" ;;
+            Linux)   mv dist/sshd-save-downgrader "dist/${{ matrix.asset }}" ;;
+          esac
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/${{ matrix.asset }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            dist/sshd-save-downgrader-windows.exe
+            dist/sshd-save-downgrader-macos.zip
+            dist/sshd-save-downgrader-linux
+            sshd_save_downgrade.py
+            sshd_save_downgrade_gui.py
+          fail_on_unmatched_files: true
+          generate_release_notes: true

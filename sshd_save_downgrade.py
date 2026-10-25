@@ -57,9 +57,13 @@ def check_crcs(buf):
     return [stored_crc(buf, k) == slot_crc(buf, k) for k in range(SLOT_COUNT)]
 
 
+def play_time(buf, k):
+    """Play time of slot k in seconds (stored as u64 ticks at 19.2 MHz)."""
+    return struct.unpack_from("<Q", buf, SLOT_BASE + k * SLOT_SIZE)[0] / 19_200_000
+
+
 def slot_used(buf, k):
-    base = SLOT_BASE + k * SLOT_SIZE
-    return struct.unpack_from("<Q", buf, base)[0] != 0  # play time
+    return play_time(buf, k) != 0
 
 
 def check_header(buf):
@@ -103,20 +107,26 @@ def find_sav(path):
     return sav
 
 
-def cmd_convert(src, dst):
+def convert_folder(src, dst, log=print):
+    """Write a v1.0.0 copy of the save at src into folder dst. Returns the new wiiking2.sav path."""
     src, dst = Path(src), Path(dst)
     sav = find_sav(src)
     src_dir = sav.parent
     if dst.exists() and dst.resolve() == src_dir.resolve():
         raise SaveError("Output folder must be different from the input folder.")
-    print(f"Converting {sav}")
-    out = downgrade(sav.read_bytes())
+    log(f"Converting {sav}")
+    out = downgrade(sav.read_bytes(), log=log)
     dst.mkdir(parents=True, exist_ok=True)
     for f in src_dir.iterdir():
         if f.is_file() and f.name != "wiiking2.sav" and not f.name.startswith("."):
             shutil.copy2(f, dst / f.name)
     (dst / "wiiking2.sav").write_bytes(out)
-    print(f"Done: {dst / 'wiiking2.sav'} (v1.0.0 format, checksums valid)")
+    log(f"Done: {dst / 'wiiking2.sav'} (v1.0.0 format, checksums valid)")
+    return dst / "wiiking2.sav"
+
+
+def cmd_convert(src, dst):
+    convert_folder(src, dst)
 
 
 def cmd_verify(path):

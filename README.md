@@ -8,9 +8,49 @@ It also documents the save format, including the per-slot checksum, which as far
 
 > **Experimental.** This has been tested on a small number of saves. Always keep a backup of your original save.
 
-## Requirements
+> **AI Assisted.** This tool was made with the help of AI (Claude Code). See [Disclaimer](#disclaimer).
 
-Python 3.8 or newer. No extra packages. Works on Windows, Linux and macOS.
+## Download
+
+Get the file for your system from the [latest release](https://github.com/robert-neagu/sshd-save-downgrade/releases/latest). The apps need nothing else installed.
+
+| System | File |
+|---|---|
+| Windows | `sshd-save-downgrader-windows.exe` |
+| macOS (Apple Silicon) | `sshd-save-downgrader-macos.zip` |
+| Linux (x86-64) | `sshd-save-downgrader-linux` |
+| Anything with Python 3.8+ | `sshd_save_downgrade_gui.py` (GUI) or `sshd_save_downgrade.py` (command line) |
+
+The apps aren't signed, so the first launch needs an extra step:
+
+- **Windows:** SmartScreen warns about an unknown publisher. Click **More info**, then **Run anyway**.
+- **macOS:** unzip, then open `sshd-save-downgrader.app`. Gatekeeper blocks unsigned apps: right-click the app and choose **Open**. On macOS 15 and newer that no longer works; instead try to open it once, then go to **System Settings > Privacy & Security** and click **Open Anyway**. Or remove the quarantine flag in Terminal:
+
+  ```bash
+  xattr -dr com.apple.quarantine sshd-save-downgrader.app
+  ```
+
+- **Linux:** make the file executable, then run it. It's built on Ubuntu 22.04, so it needs a distro at least that new (glibc 2.35 or newer).
+
+  ```bash
+  chmod +x sshd-save-downgrader-linux
+  ./sshd-save-downgrader-linux
+  ```
+
+On an Intel Mac, or anything else without a matching app, use the `.py` files.
+
+## Running the Python files
+
+Python 3.8 or newer. No extra packages. Works on Windows, Linux and macOS. The command line tool needs nothing beyond Python itself.
+
+The GUI uses tkinter, which ships with Python on Windows and with the python.org installer on macOS. Some setups need it installed separately:
+
+| System | Command |
+|---|---|
+| Debian / Ubuntu | `sudo apt install python3-tk` |
+| Fedora | `sudo dnf install python3-tkinter` |
+| Arch | `sudo pacman -S tk` |
+| macOS (Homebrew Python) | `brew install python-tk` |
 
 ## Usage
 
@@ -19,7 +59,25 @@ Get your save folder (the one containing `wiiking2.sav`, `skip.dat` and the `.sc
 - **Ryujinx / Ryubing:** right-click the game → *Open User Save Directory*
 - **Switch:** dump the save with a save manager such as [JKSV](https://github.com/J-D-K/JKSV)
 
-Convert it:
+### GUI
+
+Start the app you downloaded, or run the script:
+
+```bash
+python3 sshd_save_downgrade_gui.py
+```
+
+On Windows you can also double-click `sshd_save_downgrade_gui.py`. Then:
+
+1. Click **Your v1.0.1 save** and pick the save folder. The GUI shows the save's version and each slot with its screenshot, play time and checksum.
+2. Check the **Output folder**. It defaults to a new `Skyward Sword HD save (v1.0.0)` folder on your Desktop. If you pick a folder that already has other files in it, the GUI creates that subfolder inside it. If you pick a folder that already holds a save, the GUI replaces that save and keeps the old one as `wiiking2.sav.bak`.
+3. Click **Convert**, then **Show folder**.
+
+The GUI also works with the keyboard, using Switch-style controls: arrow keys move the cursor, A or Enter selects, B or Esc closes, Y switches between the light and dark theme. You can also pass the save folder when starting it, e.g. `python3 sshd_save_downgrade_gui.py path/to/save-folder` or `./sshd-save-downgrader-linux path/to/save-folder`.
+
+### Command line
+
+The command line tool is `sshd_save_downgrade.py` (it isn't part of the downloadable apps). Convert a save:
 
 ```bash
 python3 sshd_save_downgrade.py convert path/to/save-folder path/to/output-folder
@@ -115,15 +173,29 @@ Slots with identical data but different UUIDs had different checksums, so the UU
 
 ## Development
 
-Tests run against real saves placed in a local `saves/` folder, which is gitignored (see `tests/test_saves.py` for the expected layout). Without it, the tests are skipped.
+Tests run against real saves placed in a local `saves/` folder, which is gitignored (see `tests/test_saves.py` for the expected layout). Without it, the tests are skipped. The GUI tests also need tkinter and a display, and are skipped without them.
 
 ```bash
 python3 -m unittest discover -s tests -v
 ```
 
+### Releases
+
+Pushing a tag like `v1.2.0` runs `.github/workflows/release.yml`. It runs the tests and builds the apps with [PyInstaller](https://pyinstaller.org) on Windows, macOS and Linux. Then it publishes a GitHub release with the three apps and both `.py` files. To build the app locally (PyInstaller is only needed for building):
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install "pyinstaller>=6.22,<7"
+.venv/bin/pyinstaller --onefile --windowed --name sshd-save-downgrader sshd_save_downgrade_gui.py
+```
+
+The app ends up in `dist/`. On macOS, use `--onedir` instead of `--onefile` to get a `.app` bundle.
+
 ## Disclaimer
 
 This is an unofficial fan tool. It isn't affiliated with or endorsed by Nintendo. *The Legend of Zelda* and *Skyward Sword* are trademarks of Nintendo. No game files or save data are included in this repository.
+
+This tool is **AI Assisted**: the code, tests and documentation were written with the help of an AI coding assistant (Claude Code). It was tested on real saves, including loading a converted save in v1.0.0, but it comes with no warranty. Keep a backup of your save.
 
 ## License
 

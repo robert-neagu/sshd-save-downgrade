@@ -21,6 +21,11 @@ __pycache__/
 .venv/
 venv/
 
+# PyInstaller build output
+build/
+dist/
+*.spec
+
 # OS / editors
 .DS_Store
 Thumbs.db
