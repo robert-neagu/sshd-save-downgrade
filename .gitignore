@@ -1,0 +1,28 @@
+# Local test saves (kept out of the repo; tests skip when missing)
+saves/
+
+# Local notes for Claude Code
+CLAUDE.md
+
+# Save data and game files (never commit these)
+*.sav
+*.screenshot
+skip.dat
+.nx_save_meta.bin
+*.nsp
+*.xci
+*.keys
+exefs/
+romfs/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
