@@ -93,6 +93,67 @@ class TestHelpers(unittest.TestCase):
     def test_app_icon_is_png(self):
         self.assertTrue(gui.app_icon_png(16).startswith(b"\x89PNG\r\n\x1a\n"))
 
+    def test_settings_round_trip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sub" / "settings.json"
+            self.assertEqual(gui.load_settings(path), {})
+            gui.save_settings(path, {"style": "simple"})
+            self.assertEqual(gui.load_settings(path), {"style": "simple"})
+            path.write_text("not json")
+            self.assertEqual(gui.load_settings(path), {})
+
+    def test_every_style_has_both_modes_with_the_same_keys(self):
+        keys = set(gui.THEMES["switch"]["light"])
+        for style in gui.STYLES:
+            self.assertIn(style, gui.LOOKS)
+            for mode in ("light", "dark"):
+                self.assertLessEqual(keys, set(gui.THEMES[style][mode]), (style, mode))
+                if gui.LOOKS[style]["frame"]:
+                    self.assertIn("frame", gui.THEMES[style][mode])
+
+    def test_simple_style_is_high_contrast(self):
+        def lum(c):
+            ch = [v / 255 for v in gui.rgb(c)]
+            ch = [v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4 for v in ch]
+            return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2]
+
+        def ratio(a, b):
+            hi, lo = sorted((lum(a), lum(b)), reverse=True)
+            return (hi + 0.05) / (lo + 0.05)
+
+        for mode, t in gui.THEMES["simple"].items():
+            for bg in ("bg", "card"):  # WCAG AAA for text
+                self.assertGreaterEqual(ratio(t["text"], t[bg]), 7, (mode, bg))
+                self.assertGreaterEqual(ratio(t["sub"], t[bg]), 7, (mode, bg))
+                self.assertGreaterEqual(ratio(t["cursor"][0], t[bg]), 3, (mode, bg))
+            for key in ("accent", "blue", "ok", "warn", "bad", "info"):  # labels on colored pills
+                self.assertGreaterEqual(ratio(gui.on(t, key), t[key]), 4.5, (mode, key))
+            self.assertGreaterEqual(ratio(t["on_off"], t["off"]), 4.5, mode)
+
+    def test_joystick_events(self):
+        def ev(value, kind, num):
+            return gui.struct.pack("=IhBB", 0, value, kind, num)
+        buttons = [gui.BTN_A, gui.BTN_B, gui.BTN_X, gui.BTN_Y]
+        axes = [gui.ABS_X, gui.ABS_Y, gui.ABS_HAT0X]
+        dirs = {}
+        data = (ev(1, 0x81, 0) + ev(1, 1, 0) + ev(0, 1, 0) + ev(1, 1, 2) + ev(1, 1, 3)
+                + ev(-32767, 2, 1) + ev(-30000, 2, 1) + ev(0, 2, 1) + ev(32767, 2, 2) + ev(1, 1, 9))
+        # init event and release ignored; held stick moves once; unknown button ignored
+        self.assertEqual(gui.js_actions(data, buttons, axes, False, dirs),
+                         ["ok", "style", "theme", "up", "right"])
+        # a Nintendo pad reports its right button (A) as BTN_B
+        self.assertEqual(gui.js_actions(ev(1, 1, 1) + ev(1, 1, 0), buttons, axes, True, {}),
+                         ["ok", "close"])
+
+    def test_xinput_edges(self):
+        state, acts = gui.xinput_actions(0, 0x1000 | 0x4000, 0, 0)
+        self.assertEqual(acts, ["ok", "style"])
+        state, acts = gui.xinput_actions(state, 0x1000, 0, 30000)  # A held, stick up
+        self.assertEqual(acts, ["up"])
+        state, acts = gui.xinput_actions(state, 0, 0, 30000)
+        self.assertEqual(acts, [])
+        self.assertEqual(gui.xinput_actions(state, 0, 30000, 0)[1], ["right"])
+
     def test_sdf_png_alpha_follows_shape(self):
         png = gui.sdf_png(8, 8, gui.circle(4, 4, 3), "#FF0000")
         self.assertTrue(png.startswith(b"\x89PNG\r\n\x1a\n"))
@@ -124,7 +185,7 @@ class TestApp(unittest.TestCase):
         self.tmp.cleanup()
 
     def app(self, src=None):
-        app = gui.App(self.root, src=src, theme="light")
+        app = gui.App(self.root, src=src, theme="light", remember=False)
         self.apps.append(app)
         self.root.update()
         return app
@@ -192,9 +253,65 @@ class TestApp(unittest.TestCase):
         app.move(-1)
         app.move(-1)
         self.assertIs(app.selected, app.theme_btn)
+        app.move(-1)
+        self.assertIs(app.selected, app.style_btn)
         app.action("theme")
         self.assertEqual(app.theme, "dark")
         self.root.update()
+
+    def test_styles_rebuild_and_keep_state(self):
+        app = self.app(save_dir("mine-v1.0.1"))
+        app.set_dest(self.out)
+        app.refresh()
+        app.select(app.dst_tile)
+        seen = []
+        for _ in gui.STYLES:
+            app.action("style")
+            self.root.update()
+            seen.append(app.style)
+            self.assertEqual(app.selected, app.dst_tile)  # the cursor stays on the same control
+            self.assertTrue(app.convert_btn.enabled)
+            self.assertLessEqual(self.root.winfo_reqwidth(), app.px(gui.BASE_W))
+            self.assertLessEqual(self.root.winfo_reqheight(), app.px(gui.BASE_H[app.style]))
+            app.action("theme")
+            self.root.update()
+        self.assertEqual(seen, ["skyward", "simple", "switch"])
+        app.set_style("simple")
+        app.convert()
+        self.assertEqual(app.result[0], "ok", app.result)
+        app.set_style("skyward")
+        self.assertEqual(app.show_btn.winfo_manager(), "pack")  # result survives the rebuild
+        self.root.update()
+
+    def test_style_and_theme_are_remembered(self):
+        path = Path(self.tmp.name) / "settings.json"
+        with mock.patch.object(gui, "settings_file", lambda: path):
+            app = gui.App(self.root, theme="light")
+            self.apps.append(app)
+            app.action("style")
+            self.assertEqual(gui.load_settings(path), {"style": "skyward"})
+            app.action("theme")
+            self.assertEqual(gui.load_settings(path), {"style": "skyward", "theme": "dark"})
+            app.close()
+            self.apps.remove(app)
+            self.root = gui.tk.Tk()
+            self.root.withdraw()
+            app = gui.App(self.root)
+            self.apps.append(app)
+            self.assertEqual((app.style, app.theme), ("skyward", "dark"))
+
+    def test_gamepad_drives_the_app(self):
+        app = self.app(save_dir("mine-v1.0.1"))
+        app.pads = mock.Mock()
+        app.pads.poll.return_value = ["up", "style"]
+        app.has_focus = lambda: True
+        app.select(app.src_tile)
+        app._poll_pads()
+        self.assertEqual(app.style, "skyward")
+        self.assertIs(app.selected, app.theme_btn)
+        app.busy = True  # a file dialog is open
+        app._poll_pads()
+        self.assertEqual(app.style, "skyward")
 
 
 if __name__ == "__main__":

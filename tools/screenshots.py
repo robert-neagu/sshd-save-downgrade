@@ -4,7 +4,7 @@
 Usage:
     python3 tools/screenshots.py <v1.0.1 save folder>
 
-Opens the GUI in each theme and copies the pixels of its own window (X11
+Opens the GUI in each style and theme and copies the pixels of its own window (X11
 XGetImage by window id, so nothing else on screen can end up in the image).
 The shown folder paths are replaced with neutral ones.
 """
@@ -55,9 +55,9 @@ def grab_png(root):
     return gui.encode_png(im.width, im.height, raw)
 
 
-def capture(save, theme, out):
+def capture(save, style, theme, out):
     root = gui.tk.Tk()
-    app = gui.App(root, src=save, theme=theme)
+    app = gui.App(root, src=save, theme=theme, style=style, remember=False)
     if app.load_error:
         raise SystemExit(f"Couldn't load {save}: {app.load_error}")
     app.src_dir = SHOWN_SRC
@@ -82,8 +82,10 @@ def main(argv=None):
     gui.App._pick_scale = lambda self: SCALE
     docs = ROOT / "docs"
     docs.mkdir(exist_ok=True)
-    for theme in ("light", "dark"):
-        capture(argv[0], theme, docs / f"screenshot-{theme}.png")
+    for style in gui.STYLES:
+        prefix = "screenshot" if style == "switch" else f"screenshot-{style}"
+        for theme in ("light", "dark"):
+            capture(argv[0], style, theme, docs / f"{prefix}-{theme}.png")
 
 
 if __name__ == "__main__":

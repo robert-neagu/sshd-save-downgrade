@@ -90,7 +90,38 @@ On Windows you can also double-click `sshd_save_downgrade_gui.py`. Then:
 2. Check the **Output folder**. It defaults to a new `Skyward Sword HD save (v1.0.0)` folder on your Desktop. If you pick a folder that already has other files in it, the GUI creates that subfolder inside it. If you pick a folder that already holds a save, the GUI replaces that save and keeps the old one as `wiiking2.sav.bak`.
 3. Click **Convert**, then **Show folder**.
 
-The GUI also works with the keyboard, using Switch-style controls: arrow keys move the cursor, A or Enter selects, B or Esc closes, Y switches between the light and dark theme. You can also pass the save folder when starting it, e.g. `python3 sshd_save_downgrade_gui.py path/to/save-folder` or `./sshd-save-downgrader-linux path/to/save-folder`.
+You can also pass the save folder when starting it, e.g. `python3 sshd_save_downgrade_gui.py path/to/save-folder` or `./sshd-save-downgrader-linux path/to/save-folder`.
+
+#### Styles
+
+The GUI has three styles, each in light and dark mode. Click the style button at the top (or press X) to go to the next style, and the sun / moon button (or press Y) to switch between light and dark mode.
+
+- **Switch:** the default, styled like the Switch menus.
+- **Skyward Sword:** sky blue and parchment by day, a night sky by night, with gold trim.
+- **Simple:** an accessibility style with a plainer layout: larger text in an easy-to-read font, high contrast (all text at least 7:1), a border on every control, a cursor that doesn't pulse or bounce, and the slots as a plain list instead of screenshots.
+
+<table>
+  <tr>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-skyward-dark.png"><img src="docs/screenshot-skyward-light.png" alt="The Skyward Sword style: parchment cards with a gold border on a sky blue background"></picture></td>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-simple-dark.png"><img src="docs/screenshot-simple-light.png" alt="The Simple style: large high-contrast text, bordered controls and the slots as a plain list"></picture></td>
+  </tr>
+</table>
+
+The GUI remembers the style and mode you picked in a small settings file (`%APPDATA%\sshd-save-downgrade\settings.json` on Windows, `~/Library/Application Support/sshd-save-downgrade/settings.json` on macOS, `~/.config/sshd-save-downgrade/settings.json` on Linux). Until you pick a mode, it follows your system's light or dark setting.
+
+#### Keyboard and controller
+
+The GUI uses Switch-style controls:
+
+| Key | Controller | Does |
+|---|---|---|
+| Arrow keys, Tab | D-pad, left stick | Move the cursor |
+| A, Enter, Space | A | Select |
+| B, Esc | B | Close |
+| X | X | Next style |
+| Y | Y | Light / dark mode |
+
+A controller works on Windows (any XInput controller, such as an Xbox controller) and on Linux (any controller the kernel exposes as `/dev/input/js*`, including Xbox, PlayStation and Switch Pro controllers). It only responds while the app's window is focused. It's a small extra for fun: macOS isn't supported, since that would need more than the Python standard library.
 
 ### Command line
 
@@ -210,7 +241,7 @@ The app ends up in `dist/`. On macOS, use `--onedir` instead of `--onefile` to g
 
 ### Screenshots
 
-The screenshots in `docs/` come from `tools/screenshots.py`, which opens the GUI with a real save and captures only its own window (Linux with X11 or XWayland):
+The screenshots in `docs/` come from `tools/screenshots.py`, which opens the GUI with a real save in every style and mode and captures only its own window (Linux with X11 or XWayland):
 
 ```bash
 python3 tools/screenshots.py saves/mine-v1.0.1
