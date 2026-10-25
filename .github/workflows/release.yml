@@ -98,4 +98,6 @@ jobs:
             sshd_save_downgrade.py
             sshd_save_downgrade_gui.py
           fail_on_unmatched_files: true
+          # the hand-written intro goes first, then GitHub's list of changes
+          body_path: .github/release-notes.md
           generate_release_notes: true

@@ -369,6 +369,7 @@ class Surface(tk.Canvas if tk else object):
 class Focusable(Surface):
     """A card the Switch-style cursor can sit on. A / Enter or a click activates it."""
     radius = 14
+    pill = False  # fully rounded card, so the ring is too
 
     def __init__(self, master, app, w, h, command):
         super().__init__(master, app, w, h)
@@ -397,20 +398,25 @@ class Focusable(Surface):
     def redraw(self):
         self.configure(bg=self.app.t["bg"], cursor="hand2" if self.enabled else "")
         self.delete("all")
-        self.draw_ring()
         m = self.app.margin + (self.app.px(2) if self.pressed else 0)
         self.draw_card(m, m, self.w - m, self.h - m)
+        self.draw_ring()
 
     def draw_ring(self):
         self.delete("ring")
         if self.app.selected is not self:
             return
-        a, bg = self.app, self.app.t["bg"]
-        ring, r = a.cursor_color(), a.px(self.radius)
-        rw, gap = a.px(3), a.px(2)
-        self.rrect(0, 0, self.w, self.h, r + rw + gap, ring, bg, tags="ring")
-        self.rrect(rw, rw, self.w - rw, self.h - rw, r + gap, bg, ring, tags="ring")
-        self.tag_lower("ring")
+        a, w, h = self.app, self.w, self.h
+        ring, rw = a.cursor_color(), a.px(3)
+        gap = a.margin - rw  # ring hugs the canvas edge, concentric with the card
+        r = (min(w, h) - 2 * a.margin) // 2 if self.pill else a.px(self.radius)
+        r = min(r + rw + gap, w // 2, h // 2)  # outer radius, following the card's corners
+        kw = {"fill": ring, "outline": "", "tags": "ring"}
+        for box in ((r, 0, w - r, rw), (r, h - rw, w - r, h), (0, r, rw, h - r), (w - rw, r, w, h - r)):
+            self.create_rectangle(*box, **kw)
+        for i, (x, y) in enumerate(((0, 0), (w - r, 0), (0, h - r), (w - r, h - r))):
+            self.create_image(x, y, image=a.ring_corner(r, rw, ring, i), anchor="nw", tags="ring")
+        self.tag_raise("ring")
 
     def draw_card(self, x0, y0, x1, y1):
         pass
@@ -444,6 +450,8 @@ class Divider(Surface):
 
 
 class ThemeButton(Focusable):
+    pill = True
+
     def draw_card(self, x0, y0, x1, y1):
         a, t = self.app, self.app.t
         r = (x1 - x0) // 2
@@ -554,6 +562,8 @@ class StatusView(Surface):
 
 
 class PillButton(Focusable):
+    pill = True
+
     def __init__(self, master, app, w, h, command, primary):
         super().__init__(master, app, w, h, command)
         self.primary, self.label, self.flash = primary, "", False
@@ -694,6 +704,14 @@ class App:
         cx, cy = (r, 0)[i % 2], (r, 0)[i // 2]
         return self._cached(("corner", r, fill, bg, i),
                             lambda: raster(self.root, r, r, bg, [(circle(cx, cy, r), fill)]))
+
+    def ring_corner(self, r, w, color, i):
+        """Corner of the cursor ring: a quarter annulus of width w and outer radius r, transparent
+        elsewhere so it can sit on top of the card's own corner."""
+        cx, cy = (r, 0)[i % 2], (r, 0)[i // 2]
+        shape = minus(circle(cx, cy, r), circle(cx, cy, r - w))
+        return self._cached(("ring", r, w, color, i), lambda: tk.PhotoImage(
+            master=self.root, data=base64.b64encode(sdf_png(r, r, shape, color)).decode()))
 
     def icon(self, glyph, size, color, bg, disc=None):
         def make():
@@ -1036,10 +1054,25 @@ def app_icon_png(size):
             a = min(max(.5 - shape(x, y), 0), 1)
             w = min(max(.5 - glyph(x, y), 0), 1)
             raw += bytes(round(c + (255 - c) * w) for c in red) + bytes([round(a * 255)])
+    return encode_png(size, size, raw)
 
+
+def sdf_png(w, h, f, color):
+    """PNG of shape f in color on a transparent background, anti-aliased."""
+    c = bytes(rgb(color))
+    raw = bytearray()
+    for j in range(h):
+        raw.append(0)
+        for i in range(w):
+            raw += c + bytes([round(min(max(.5 - f(i + .5, j + .5), 0), 1) * 255)])
+    return encode_png(w, h, raw)
+
+
+def encode_png(w, h, raw):
+    """RGBA PNG from raw scanlines (each starting with a filter byte)."""
     def chunk(kind, data):
         return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
-    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0))
             + chunk(b"IDAT", zlib.compress(bytes(raw))) + chunk(b"IEND", b""))
 
 

@@ -4,6 +4,23 @@ Convert **The Legend of Zelda: Skyward Sword HD** (Nintendo Switch) saves from *
 
 Version 1.0.0 refuses saves written by 1.0.1 and reports them as corrupted. That's a problem if you want to play on something that only supports 1.0.0, like [Sky Recomp](https://github.com/Apolinario-coder/SkyRecomp) (the native PC port) or a 1.0.0 setup for speedrunning. This tool rewrites a 1.0.1 save so 1.0.0 accepts it, keeping all your progress.
 
+**Fixes this error** when you load a 1.0.1 save in Sky Recomp, or in Ryujinx / Ryubing or on a Switch without the 1.0.1 update:
+
+> The file cannot be used because the data is corrupted. All data saved up to this point will be lost. Create new save data?
+
+<p align="center">
+  <img src="docs/error-corrupted-save.jpg" width="420" alt="Skyward Sword HD error: The file cannot be used because the data is corrupted. All data saved up to this point will be lost. Create new save data? No / Yes">
+</p>
+
+If you see it, choose **No**. **Yes** starts over with new save data, replacing your progress.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-dark.png">
+    <img src="docs/screenshot-light.png" width="680" alt="The app with a v1.0.1 save loaded: its four slots with screenshots and play time, the output folder, and the Convert button">
+  </picture>
+</p>
+
 It also documents the save format, including the per-slot checksum, which as far as I know wasn't publicly documented before.
 
 > **Experimental.** This has been tested on a small number of saves. Always keep a backup of your original save.
@@ -181,7 +198,7 @@ python3 -m unittest discover -s tests -v
 
 ### Releases
 
-Pushing a tag like `v1.2.0` runs `.github/workflows/release.yml`. It runs the tests and builds the apps with [PyInstaller](https://pyinstaller.org) on Windows, macOS and Linux. Then it publishes a GitHub release with the three apps and both `.py` files. To build the app locally (PyInstaller is only needed for building):
+Pushing a tag like `v1.2.0` runs `.github/workflows/release.yml`. It runs the tests and builds the apps with [PyInstaller](https://pyinstaller.org) on Windows, macOS and Linux. Then it publishes a GitHub release with the three apps and both `.py` files. The release notes start with `.github/release-notes.md`, followed by GitHub's list of changes. To build the app locally (PyInstaller is only needed for building):
 
 ```bash
 python3 -m venv .venv
@@ -191,9 +208,17 @@ python3 -m venv .venv
 
 The app ends up in `dist/`. On macOS, use `--onedir` instead of `--onefile` to get a `.app` bundle.
 
+### Screenshots
+
+The screenshots in `docs/` come from `tools/screenshots.py`, which opens the GUI with a real save and captures only its own window (Linux with X11 or XWayland):
+
+```bash
+python3 tools/screenshots.py saves/mine-v1.0.1
+```
+
 ## Disclaimer
 
-This is an unofficial fan tool. It isn't affiliated with or endorsed by Nintendo. *The Legend of Zelda* and *Skyward Sword* are trademarks of Nintendo. No game files or save data are included in this repository.
+This is an unofficial fan tool. It isn't affiliated with or endorsed by Nintendo. *The Legend of Zelda* and *Skyward Sword* are trademarks of Nintendo. No game files or save data are included in this repository. The screenshots show images from the game (the error message and save thumbnails) only to illustrate what the tool fixes; they belong to Nintendo.
 
 This tool is **AI Assisted**: the code, tests and documentation were written with the help of an AI coding assistant (Claude Code). It was tested on real saves, including loading a converted save in v1.0.0, but it comes with no warranty. Keep a backup of your save.
 

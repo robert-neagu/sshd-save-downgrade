@@ -6,6 +6,7 @@ import os
 import sys
 import tempfile
 import unittest
+import zlib
 from pathlib import Path
 from unittest import mock
 
@@ -91,6 +92,17 @@ class TestHelpers(unittest.TestCase):
 
     def test_app_icon_is_png(self):
         self.assertTrue(gui.app_icon_png(16).startswith(b"\x89PNG\r\n\x1a\n"))
+
+    def test_sdf_png_alpha_follows_shape(self):
+        png = gui.sdf_png(8, 8, gui.circle(4, 4, 3), "#FF0000")
+        self.assertTrue(png.startswith(b"\x89PNG\r\n\x1a\n"))
+        start = png.index(b"IDAT")
+        size = int.from_bytes(png[start - 4:start], "big")
+        raw = zlib.decompress(png[start + 4:start + 4 + size])
+        stride = 1 + 8 * 4  # filter byte + 8 RGBA pixels
+        centre = 4 * stride + 1 + 4 * 4
+        self.assertEqual(raw[centre:centre + 4], b"\xff\x00\x00\xff")  # opaque red
+        self.assertEqual(raw[1 + 3], 0)  # top-left pixel is fully transparent
 
 
 class TestApp(unittest.TestCase):
