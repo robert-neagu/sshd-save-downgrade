@@ -222,6 +222,12 @@ This is an unofficial fan tool. It isn't affiliated with or endorsed by Nintendo
 
 This tool is **AI Assisted**: the code, tests and documentation were written with the help of an AI coding assistant (Claude Code). It was tested on real saves, including loading a converted save in v1.0.0, but it comes with no warranty. Keep a backup of your save.
 
+## Credit
+
+If you use this tool, its code, or the save format documentation in your own project, please credit it, for example:
+
+> Save conversion based on [sshd-save-downgrade](https://github.com/robert-neagu/sshd-save-downgrade) by Robert Neagu.
+
 ## License
 
 [MIT](LICENSE)

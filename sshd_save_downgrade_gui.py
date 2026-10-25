@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# sshd-save-downgrade by Robert Neagu: https://github.com/robert-neagu/sshd-save-downgrade
+# Copyright (c) 2026 Robert Neagu. SPDX-License-Identifier: MIT
 """Desktop GUI for sshd_save_downgrade.py (Windows, macOS, Linux).
 
 Usage:

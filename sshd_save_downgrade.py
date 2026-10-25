@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# sshd-save-downgrade by Robert Neagu: https://github.com/robert-neagu/sshd-save-downgrade
+# Copyright (c) 2026 Robert Neagu. SPDX-License-Identifier: MIT
 """Convert Zelda: Skyward Sword HD (Switch) saves from v1.0.1 format to v1.0.0 format.
 
 Usage:
